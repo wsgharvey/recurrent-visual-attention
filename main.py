@@ -3,7 +3,7 @@ import torch
 from trainer import Trainer
 from config import get_config
 from utils import prepare_dirs, save_config
-from data_loader import get_test_loader, get_train_valid_loader
+from data_loader import get_gen_model_loader
 
 
 def main(config):
@@ -20,18 +20,28 @@ def main(config):
 
     # instantiate data loaders
     if config.is_train:
-        data_loader = get_train_valid_loader(
-            config.data_dir, config.batch_size,
-            config.random_seed, config.valid_size,
-            config.shuffle, config.show_sample, **kwargs
+        train_loader = get_gen_model_loader(
+            config.batch_size,
+            epoch_size=54000,
+            fix_data=False,
+            **kwargs
+        )
+        valid_loader = get_gen_model_loader(
+            config.batch_size,
+            epoch_size=6000,
+            fix_data=True,
+            **kwargs
         )
     else:
-        data_loader = get_test_loader(
-            config.data_dir, config.batch_size, **kwargs
+        test_loader = get_gen_model_loader(
+            config.batch_size,
+            epoch_size=10000,
+            fix_data=True,
+            **kwargs
         )
 
     # instantiate trainer
-    trainer = Trainer(config, data_loader)
+    trainer = Trainer(config, (train_loader, valid_loader))
 
     # either train
     if config.is_train:

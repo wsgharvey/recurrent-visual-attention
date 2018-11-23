@@ -6,6 +6,9 @@ from torchvision import datasets
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 
+# for generative model
+from mea.examples.mnist import mnist_model
+from torch.utils.data.dataset import Dataset
 
 def get_train_valid_loader(data_dir,
                            batch_size,
@@ -128,6 +131,55 @@ def get_test_loader(data_dir,
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=batch_size, shuffle=False,
+        num_workers=num_workers, pin_memory=pin_memory,
+    )
+
+    return data_loader
+
+class GenModelDataset(Dataset):
+    def __init__(self, transform, fix_data=False):
+        """
+        transform: preprocessing step for data
+        fix_data: if True, will use index as random seed when returning a sample
+        """
+        self.transform = transform
+        self.fix_data = fix_data
+
+    def __getitem__(self, index):
+        if self.fix_data:
+            rng_state = torch.get_rng_state()
+            torch.manual_seed(index)
+
+        trace_dict = mnist_model()
+
+        if self.fix_data:
+            torch.set_rng_state(rng_state)
+
+        raw = trace_dict['image'].data.view(1, 28, 28)
+        image = self.transform(raw)
+        digit_label = trace_dict['label']
+        return image, digit_label
+
+def get_gen_model_loader(batch_size,
+                         epoch_size,
+                         fix_data,
+                         num_workers=4,
+                         pin_memory=False):
+    """
+    imitates data loaders but supplies infinite stream from generative model
+
+    fix random seed externally if desired
+
+    actually very silly
+    """
+    normalize = transforms.Normalize((0.1307,), (0.3081,))
+
+    dataset = GenModelDataset(normalize, fix_data=fix_data)
+
+    sampler = SubsetRandomSampler(range(epoch_size))
+
+    data_loader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, sampler=sampler,
         num_workers=num_workers, pin_memory=pin_memory,
     )
 
