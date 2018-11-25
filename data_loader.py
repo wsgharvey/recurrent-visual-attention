@@ -137,12 +137,13 @@ def get_test_loader(data_dir,
     return data_loader
 
 class GenModelDataset(Dataset):
-    def __init__(self, transform, fix_data=False):
+    def __init__(self, transform, epoch_size, fix_data=False):
         """
         transform: preprocessing step for data
         fix_data: if True, will use index as random seed when returning a sample
         """
         self.transform = transform
+        self.epoch_size = epoch_size
         self.fix_data = fix_data
 
     def __getitem__(self, index):
@@ -160,6 +161,9 @@ class GenModelDataset(Dataset):
         digit_label = trace_dict['label']
         return image, digit_label
 
+    def __len__(self):
+        return self.epoch_size
+
 def get_gen_model_loader(batch_size,
                          epoch_size,
                          fix_data,
@@ -174,7 +178,7 @@ def get_gen_model_loader(batch_size,
     """
     normalize = transforms.Normalize((0.1307,), (0.3081,))
 
-    dataset = GenModelDataset(normalize, fix_data=fix_data)
+    dataset = GenModelDataset(normalize, epoch_size, fix_data=fix_data)
 
     sampler = SubsetRandomSampler(range(epoch_size))
 

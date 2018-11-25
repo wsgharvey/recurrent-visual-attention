@@ -32,8 +32,9 @@ def main(config):
             fix_data=True,
             **kwargs
         )
+        data_loader = (train_loader, valid_loader)
     else:
-        test_loader = get_gen_model_loader(
+        data_loader = get_gen_model_loader(
             config.batch_size,
             epoch_size=10000,
             fix_data=True,
@@ -41,7 +42,7 @@ def main(config):
         )
 
     # instantiate trainer
-    trainer = Trainer(config, (train_loader, valid_loader))
+    trainer = Trainer(config, data_loader)
 
     # either train
     if config.is_train:
