@@ -323,7 +323,7 @@ class location_network(nn.Module):
 
     def forward(self, h_t):
         # compute mean
-        mu = F.tanh(self.fc(h_t.detach()))
+        mu = self.fc(h_t.detach())
 
         # reparametrization trick
         noise = torch.zeros_like(mu)
