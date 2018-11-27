@@ -322,9 +322,9 @@ class Trainer(object):
 
                 # log to tensorboard
                 if self.use_tensorboard:
-                    iteration = epoch*len(self.train_loader) + i
-                    log_value('train_loss', losses.avg, iteration)
-                    log_value('train_acc', accs.avg, iteration)
+                    trace = epoch*self.num_train + i*self.batch_size
+                    log_value('train_loss', loss.item(), trace)
+                    log_value('train_acc', acc.item(), trace)
 
             return losses.avg, accs.avg
 
@@ -410,11 +410,10 @@ class Trainer(object):
             losses.update(loss.data[0], x.size()[0])
             accs.update(acc.data[0], x.size()[0])
 
-            # log to tensorboard
-            if self.use_tensorboard:
-                iteration = epoch*len(self.valid_loader) + i
-                log_value('valid_loss', losses.avg, iteration)
-                log_value('valid_acc', accs.avg, iteration)
+        # log to tensorboard
+        if self.use_tensorboard:
+            log_value('valid_loss', losses.avg, epoch*self.num_train)
+            log_value('valid_acc', accs.avg, epoch*self.num_train)
 
         return losses.avg, accs.avg
 
