@@ -86,11 +86,11 @@ class retina(object):
         B, C, H, W = x.shape
 
         # denormalize coords of patch center
-        coords = self.denormalize(H-size+1, l)
+        coords = self.denormalize(H, l)
 
         # compute top left corner of patch
-        patch_x = coords[:, 0]
-        patch_y = coords[:, 1]
+        patch_x = coords[:, 0] - (size // 2)
+        patch_y = coords[:, 1] - (size // 2)
 
         # loop through mini-batch and extract
         patch = []
@@ -103,8 +103,24 @@ class retina(object):
             from_y, to_y = patch_y[i], patch_y[i] + size
 
             # cast to ints
-            from_x, to_x = from_x.item(), to_x.item()
-            from_y, to_y = from_y.item(), to_y.item()
+            from_x, to_x = from_x.data[0], to_x.data[0]
+            from_y, to_y = from_y.data[0], to_y.data[0]
+
+            # pad tensor in case exceeds
+            if self.exceeds(from_x, to_x, from_y, to_y, T):
+                pad_dims = (
+                    size//2+1, size//2+1,
+                    size//2+1, size//2+1,
+                    0, 0,
+                    0, 0,
+                )
+                im = F.pad(im, pad_dims, "constant", 0)
+
+                # add correction factor
+                from_x += (size//2+1)
+                to_x += (size//2+1)
+                from_y += (size//2+1)
+                to_y += (size//2+1)
 
             # and finally extract
             patch.append(im[:, :, from_y:to_y, from_x:to_x])
@@ -332,9 +348,6 @@ class location_network(nn.Module):
 
         # bound between [-1, 1]
         l_t = F.tanh(l_t)
-
-        # bound between [0, 1]
-        l_t = 0.5 * (l_t + 1)
 
         return mu, l_t
 
