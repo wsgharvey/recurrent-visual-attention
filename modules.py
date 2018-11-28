@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from torch.autograd import Variable
 
@@ -339,7 +338,7 @@ class location_network(nn.Module):
 
     def forward(self, h_t):
         # compute mean
-        mu = F.tanh(self.fc(h_t.detach()))
+        mu = self.fc(h_t.detach())
 
         # reparametrization trick
         noise = torch.zeros_like(mu)
@@ -347,7 +346,7 @@ class location_network(nn.Module):
         l_t = mu + noise
 
         # bound between [-1, 1]
-        l_t = F.tanh(l_t)
+        l_t = torch.tanh(l_t)
 
         return mu, l_t
 
