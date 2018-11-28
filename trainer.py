@@ -342,6 +342,7 @@ class Trainer(object):
 
             # duplicate 10 times
             x = x.repeat(self.M, 1, 1, 1)
+            y = y.repeat(self.M)
 
             # initialize location vector and hidden state
             self.batch_size = x.shape[0]
@@ -369,21 +370,18 @@ class Trainer(object):
             baselines = torch.stack(baselines).transpose(1, 0)
             log_pi = torch.stack(log_pi).transpose(1, 0)
 
-            # average
+            # stack data points and MC samples together
             log_probas = log_probas.view(
-                self.M, -1, log_probas.shape[-1]
+                -1, log_probas.shape[-1]
             )
-            log_probas = torch.mean(log_probas, dim=0)
 
             baselines = baselines.contiguous().view(
-                self.M, -1, baselines.shape[-1]
+                -1, baselines.shape[-1]
             )
-            baselines = torch.mean(baselines, dim=0)
 
             log_pi = log_pi.contiguous().view(
-                self.M, -1, log_pi.shape[-1]
+                -1, log_pi.shape[-1]
             )
-            log_pi = torch.mean(log_pi, dim=0)
 
             # calculate reward
             predicted = torch.max(log_probas, 1)[1]
@@ -404,7 +402,7 @@ class Trainer(object):
 
             # compute accuracy
             correct = (predicted == y).float()
-            acc = 100 * (correct.sum() / len(y))
+            acc = 100 * (correct.sum() / (len(y)))
 
             # store
             losses.update(loss.data[0], x.size()[0])
@@ -412,8 +410,8 @@ class Trainer(object):
 
         # log to tensorboard
         if self.use_tensorboard:
-            log_value('valid_loss', losses.avg, epoch*self.num_train)
-            log_value('valid_acc', accs.avg, epoch*self.num_train)
+            log_value('valid_loss', losses.avg, (epoch+1)*self.num_train)
+            log_value('valid_acc', accs.avg, (epoch+1)*self.num_train)
 
         return losses.avg, accs.avg
 
@@ -435,6 +433,7 @@ class Trainer(object):
 
             # duplicate 10 times
             x = x.repeat(self.M, 1, 1, 1)
+            y = y.repeat(self.M)
 
             # initialize location vector and hidden state
             self.batch_size = x.shape[0]
@@ -451,18 +450,17 @@ class Trainer(object):
             )
 
             log_probas = log_probas.view(
-                self.M, -1, log_probas.shape[-1]
+                -1, log_probas.shape[-1]
             )
-            log_probas = torch.mean(log_probas, dim=0)
 
             pred = log_probas.data.max(1, keepdim=True)[1]
             correct += pred.eq(y.data.view_as(pred)).cpu().sum()
 
-        perc = (100. * correct) / (self.num_test)
+        perc = (100. * correct) / (self.num_test*self.M)
         error = 100 - perc
         print(
             '[*] Test Acc: {}/{} ({:.2f}% - {:.2f}%)'.format(
-                correct, self.num_test, perc, error)
+                correct, self.num_test*self.M, perc, error)
         )
 
     def save_checkpoint(self, state, is_best):
