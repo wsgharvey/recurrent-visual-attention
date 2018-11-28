@@ -137,7 +137,7 @@ def get_test_loader(data_dir,
     return data_loader
 
 class GenModelDataset(Dataset):
-    def __init__(self, transform, epoch_size, fix_data=False):
+    def __init__(self, transform, epoch_size, fix_data=False, fix_offset=0):
         """
         transform: preprocessing step for data
         fix_data: if True, will use index as random seed when returning a sample
@@ -145,11 +145,12 @@ class GenModelDataset(Dataset):
         self.transform = transform
         self.epoch_size = epoch_size
         self.fix_data = fix_data
+        self.fix_offset = fix_offset
 
     def __getitem__(self, index):
         if self.fix_data:
             rng_state = torch.get_rng_state()
-            torch.manual_seed(index)
+            torch.manual_seed(index+self.fix_offset)
 
         trace_dict = mnist_model()
 
@@ -167,6 +168,7 @@ class GenModelDataset(Dataset):
 def get_gen_model_loader(batch_size,
                          epoch_size,
                          fix_data,
+                         fix_offset=0,
                          num_workers=4,
                          pin_memory=False):
     """
@@ -178,7 +180,10 @@ def get_gen_model_loader(batch_size,
     """
     normalize = transforms.Normalize((0.1307,), (0.3081,))
 
-    dataset = GenModelDataset(normalize, epoch_size, fix_data=fix_data)
+    dataset = GenModelDataset(normalize,
+                              epoch_size,
+                              fix_data=fix_data,
+                              fix_offset=fix_offset)
 
     sampler = SubsetRandomSampler(range(epoch_size))
 

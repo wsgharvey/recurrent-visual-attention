@@ -38,6 +38,7 @@ def main(config):
             config.batch_size,
             epoch_size=10000,
             fix_data=True,
+            fix_offset=1e6,
             **kwargs
         )
 
