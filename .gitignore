@@ -5,6 +5,9 @@ data/raw/
 logs/
 ckpt/
 .DS_Store
+run_job.sh
+ignore/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
