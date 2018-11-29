@@ -8,7 +8,6 @@ from torch.distributions import Normal
 from modules import baseline_network
 from modules import glimpse_network, core_network
 from modules import action_network, location_network
-from utils import arctanh, dif_arctanh
 
 
 class RecurrentAttention(nn.Module):
@@ -33,6 +32,7 @@ class RecurrentAttention(nn.Module):
                  h_g,
                  h_l,
                  std,
+                 constrain_mu,
                  hidden_size,
                  num_classes):
         """
@@ -59,7 +59,7 @@ class RecurrentAttention(nn.Module):
 
         self.sensor = glimpse_network(h_g, h_l, g, k, s, c)
         self.rnn = core_network(hidden_size, hidden_size)
-        self.locator = location_network(hidden_size, 2, std)
+        self.locator = location_network(hidden_size, 2, std, constrain_mu)
         self.classifier = action_network(hidden_size, num_classes)
         self.baseliner = baseline_network(hidden_size, 1)
 
@@ -101,13 +101,13 @@ class RecurrentAttention(nn.Module):
         """
         g_t = self.sensor(x, l_t_prev)
         h_t = self.rnn(g_t, h_t_prev)
-        mu, l_t = self.locator(h_t)
+        mu, l_t, pre_tanh = self.locator(h_t)
         b_t = self.baseliner(h_t).squeeze()
 
-        # we use change of variables to handle the tanh applied to the value
-        # sampled from a normal
-        sampled = arctanh(l_t)
-        log_pi = Normal(mu, self.std).log_prob(sampled) * dif_arctanh(l_t)
+        # we assume both dimensions are independent
+        # 1. pdf of the joint is the product of the pdfs
+        # 2. log of the product is the sum of the logs
+        log_pi = Normal(mu, self.std).log_prob(pre_tanh)
         log_pi = torch.sum(log_pi, dim=1)
 
         if last:

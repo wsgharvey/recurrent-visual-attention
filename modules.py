@@ -332,24 +332,27 @@ class location_network(nn.Module):
     - mu: a 2D vector of shape (B, 2).
     - l_t: a 2D vector of shape (B, 2).
     """
-    def __init__(self, input_size, output_size, std):
+    def __init__(self, input_size, output_size, std, constrain_mu):
         super(location_network, self).__init__()
         self.std = std
         self.fc = nn.Linear(input_size, output_size)
+        self.constrain_mu = constrain_mu
 
     def forward(self, h_t):
         # compute mean
-        mu = torch.tanh(self.fc(h_t.detach()))
+        mu = self.fc(h_t.detach())
+        if self.constrain_mu:
+            mu = torch.tanh(mu)
 
         # reparametrization trick
         noise = torch.zeros_like(mu)
         noise.data.normal_(std=self.std)
-        l_t = mu + noise
+        pre_tanh = mu + noise
 
         # bound between [-1, 1]
-        l_t = torch.tanh(l_t)
+        l_t = torch.tanh(pre_tanh)
 
-        return mu, l_t
+        return mu, l_t, pre_tanh
 
 
 class baseline_network(nn.Module):

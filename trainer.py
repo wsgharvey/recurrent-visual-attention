@@ -48,6 +48,7 @@ class Trainer(object):
 
         # reinforce params
         self.std = config.std
+        self.constrain_mu = config.constrain_mu
         self.M = config.M
 
         # data params
@@ -103,7 +104,7 @@ class Trainer(object):
         self.model = RecurrentAttention(
             self.patch_size, self.num_patches, self.glimpse_scale,
             self.num_channels, self.loc_hidden, self.glimpse_hidden,
-            self.std, self.hidden_size, self.num_classes,
+            self.std, self.constrain_mu, self.hidden_size, self.num_classes,
         )
         if self.use_gpu:
             self.model.cuda()
