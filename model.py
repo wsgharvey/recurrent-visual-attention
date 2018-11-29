@@ -8,6 +8,7 @@ from torch.distributions import Normal
 from modules import baseline_network
 from modules import glimpse_network, core_network
 from modules import action_network, location_network
+from utils import arctanh, dif_arctanh
 
 
 class RecurrentAttention(nn.Module):
@@ -103,10 +104,10 @@ class RecurrentAttention(nn.Module):
         mu, l_t = self.locator(h_t)
         b_t = self.baseliner(h_t).squeeze()
 
-        # we assume both dimensions are independent
-        # 1. pdf of the joint is the product of the pdfs
-        # 2. log of the product is the sum of the logs
-        log_pi = Normal(mu, self.std).log_prob(l_t)
+        # we use change of variables to handle the tanh applied to the value
+        # sampled from a normal
+        sampled = arctanh(l_t)
+        log_pi = Normal(mu, self.std).log_prob(sampled) * dif_arctanh(l_t)
         log_pi = torch.sum(log_pi, dim=1)
 
         if last:
