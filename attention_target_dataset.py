@@ -95,6 +95,9 @@ class AttentionTargetDataset(Dataset):
     def _processed_data_exists(self):
         return os.path.exists(self.training_path)
 
+    def __len__(self):
+        return len(self.images)
+
 
 if __name__ == '__main__':
     import argparse
@@ -105,4 +108,4 @@ if __name__ == '__main__':
                         help='path of raw data folder')
     args = parser.parse_args()
 
-    AttentionTargetDataset(".", loadfrom=args.raw_data_folder)
+    AttentionTargetDataset("attention_target_data", loadfrom=args.raw_data_folder)

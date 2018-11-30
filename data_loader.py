@@ -5,10 +5,11 @@ import torch
 from torchvision import datasets
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data.dataset import Dataset
 
 # for generative model
 from mea.examples.mnist import mnist_model
-from torch.utils.data.dataset import Dataset
+from attention_target_dataset import AttentionTargetDataset
 
 def get_train_valid_loader(data_dir,
                            batch_size,
@@ -158,7 +159,7 @@ class GenModelDataset(Dataset):
         self.supervise_indicator += supervise_attention_freq
         if self.supervise_indicator >= 1:
             self.supervise_indicator -= 1
-            return self._get_supervised(...)
+            raise NotImplementedError("Mixed in attention targets are not yet implemented.")
         else:
             return self._generate_unsupervised(index)
 
@@ -202,9 +203,31 @@ def get_gen_model_loader(batch_size,
                               epoch_size,
                               fix_data=fix_data,
                               fix_offset=fix_offset,
-                              supervise_attention_freq)
+                              supervise_attention_freq=supervise_attention_freq)
 
     sampler = SubsetRandomSampler(range(epoch_size))
+
+    data_loader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, sampler=sampler,
+        num_workers=num_workers, pin_memory=pin_memory,
+    )
+
+    return data_loader
+
+def get_supervised_attention_loader(batch_size,
+                                    num_workers=4,
+                                    pin_memory=False):
+
+    # define transforms
+    normalize = transforms.Normalize((0.1307,), (0.3081,))
+    trans = transforms.Compose([
+        transforms.ToTensor(), normalize,
+    ])
+
+    dataset = AttentionTargetDataset("attention_target_data",
+                                     transform=trans)
+
+    sampler = SubsetRandomSampler(range(len(dataset)))
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=batch_size, sampler=sampler,
