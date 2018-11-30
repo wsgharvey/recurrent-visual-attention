@@ -2,6 +2,7 @@
 *.mp4
 data/processed/
 data/raw/
+attention_target_data/processed
 logs/
 ckpt/
 .DS_Store
