@@ -9,14 +9,40 @@ from torch.utils.data.dataset import Dataset
 from torchvision.datasets.utils import makedir_exist_ok
 
 
+def normalize_attention_loc(integers, w=28, h=28, T=1):
+    """
+    Transforms tensor of image locations represented by the top left pixel
+    number into coordinates of centre in [-1, 1]^2.
+    """
+    integers = integers.type(torch.FloatTensor)
+
+    # get pixel coords with top left as (0, 0) and bottom right as (x, y) = (w-1, h-1)
+    pixel_x, pixel_y = integers % w, integers // w
+
+    # normalise to between (0, 0) (inclusive) and (1, 1) (exclusive)
+    pixel_x = pixel_x / w
+    pixel_y = pixel_y / h
+
+    # shift locations to centre of bins
+    pixel_x = pixel_x + 1/(2*w)
+    pixel_y = pixel_y + 1/(2*h)
+
+    # move to between (-1, -1) and (1, 1) (both exclusive)
+    pixel_x = 2*pixel_x - 1
+    pixel_y = 2*pixel_y - 1
+
+    return torch.cat([pixel_x.view(-1, 1), pixel_y.view(-1, 1)], dim=1)
+
+
 class AttentionTargetDataset(Dataset):
     data_file_name = 'training.pt'
 
-    def __init__(self, root, transform=None, target_transform=None, loadfrom=None):
+    def __init__(self, root, transform=None, label_transform=None, attention_target_transform=None, loadfrom=None):
         self.processed_folder = os.path.join(root, "processed")
         self.training_path = os.path.join(self.processed_folder, self.data_file_name)
         self.transform = transform
-        self.target_transform = target_transform
+        self.label_transform = label_transform
+        self.attention_target_transform = attention_target_transform
 
         if loadfrom is not None:
             self._process(loadfrom)
@@ -38,8 +64,11 @@ class AttentionTargetDataset(Dataset):
         if self.transform is not None:
             image = self.transform(image)
 
-        if self.target_transform is not None:
-            target = self.target_transform(target)
+        if self.label_transform is not None:
+            label = self.label_transform(label)
+
+        if self.attention_target_transform is not None:
+            attention_target = self.attention_target_transform(attention_target)
 
         return image, label, attention_target, posterior_target
 

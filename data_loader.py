@@ -9,7 +9,7 @@ from torch.utils.data.dataset import Dataset
 
 # for generative model
 from mea.examples.mnist import mnist_model
-from attention_target_dataset import AttentionTargetDataset
+from attention_target_dataset import AttentionTargetDataset, normalize_attention_loc
 
 def get_train_valid_loader(data_dir,
                            batch_size,
@@ -225,7 +225,8 @@ def get_supervised_attention_loader(batch_size,
     ])
 
     dataset = AttentionTargetDataset("attention_target_data",
-                                     transform=trans)
+                                     transform=trans,
+                                     attention_target_transform=normalize_attention_loc)
 
     sampler = SubsetRandomSampler(range(len(dataset)))
 
