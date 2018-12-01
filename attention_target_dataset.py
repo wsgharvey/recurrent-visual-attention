@@ -14,6 +14,8 @@ def normalize_attention_loc(integers, w=28, h=28, T=1):
     Transforms tensor of image locations represented by the top left pixel
     number into coordinates of centre in [-1, 1]^2.
     """
+    assert integers.max() < w*h
+
     integers = integers.type(torch.FloatTensor)
 
     # get pixel coords with top left as (0, 0) and bottom right as (x, y) = (w-1, h-1)
@@ -59,7 +61,8 @@ class AttentionTargetDataset(Dataset):
         attention_target = self.attention_targets[index]
         posterior_target = self.posterior_targets[index]
 
-        image = Image.fromarray(image.numpy(), mode='L')
+        # image = Image.fromarray(image.numpy(), mode='L')
+        image = image.view(1, 28, 28)
 
         if self.transform is not None:
             image = self.transform(image)

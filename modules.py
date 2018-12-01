@@ -6,6 +6,8 @@ from torch.autograd import Variable
 
 import numpy as np
 
+from attention_target_dataset import normalize_attention_loc
+
 
 class retina(object):
     """
@@ -353,6 +355,26 @@ class location_network(nn.Module):
         l_t = torch.tanh(pre_tanh)
 
         return mu, l_t, pre_tanh
+
+class discrete_location_network(nn.Module):
+    """
+    like `location_network` but outputs categorical distribution over
+    `output_size` locations
+    """
+    def __init__(self, input_size, output_size):
+        super(discrete_location_network, self).__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(input_size, 32),
+            nn.Linear(32, output_size),
+            nn.Softmax(dim=1))
+
+    def forward(self, h_t, fix_l_t=None):
+        probs = self.fc(h_t.detach())
+        dist = torch.distributions.Categorical(probs=probs)
+        l_t = dist.sample() if fix_l_t is None else fix_l_t
+        l_t_pdf = dist.log_prob(l_t)  # won't work as l_t is normalized here
+
+        return l_t, l_t_pdf
 
 
 class baseline_network(nn.Module):

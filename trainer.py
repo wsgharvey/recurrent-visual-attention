@@ -11,7 +11,7 @@ import shutil
 import pickle
 
 from tqdm import tqdm
-from utils import AverageMeter
+from utils import AverageMeter, arctanh
 from model import RecurrentAttention
 from tensorboard_logger import configure, log_value
 
@@ -231,31 +231,33 @@ class Trainer(object):
                 # extract the glimpses
                 locs = []
                 log_pi = []
+                log_p_targets = []
+                kl_divs = []
                 baselines = []
-                for t in range(self.num_glimpses - 1):
+                for t in range(self.num_glimpses):
                     # forward pass through model
-                    h_t, l_t, b_t, p = self.model(x, h_t)
-
+                    l_t_targets = attention_targets[:, t]
+                    h_t, l_t, b_t, log_probas, p = self.model(x, h_t, last=True, replace_lt=l_t_targets)    # last=True means it always makes predictions
                     # store
                     locs.append(l_t[0:9])
                     baselines.append(b_t)
                     log_pi.append(p)
 
-                # probability that we propose targets
-                l_t_targets = arctanh(attention_targets)
-                log_p_targets = torch.distributions.Normal(l_t, self.std).log_prob(l_t_targets)
+                    # probability that we propose targets
+                    log_p_targets.append(p)
 
-                # last iteration
-                h_t, l_t, b_t, log_probas, p = self.model(
-                    x, h_t, last=True
-                )
-                log_pi.append(p)
-                baselines.append(b_t)
-                locs.append(l_t[0:9])
+                    t_targets = posterior_targets[:, t, :]
+                    t_predicted = log_probas
+                    # KL(p,q) = posterior_loss(q,p) - q is logs, p is not
+                    kl_div = torch.nn.KLDivLoss(size_average=False)(log_probas,
+                                                                    t_targets)/len(log_probas)
+                    kl_divs.append(kl_div)
 
                 # convert list to tensors and reshape
                 baselines = torch.stack(baselines).transpose(1, 0)
                 log_pi = torch.stack(log_pi).transpose(1, 0)
+                log_p_targets = torch.sum(torch.stack(log_p_targets))
+                predict_kl_div = torch.sum(torch.stack(kl_divs))
 
                 # calculate reward
                 predicted = torch.max(log_probas, 1)[1]
@@ -272,8 +274,14 @@ class Trainer(object):
                 loss_reinforce = torch.sum(-log_pi*adjusted_reward, dim=1)
                 loss_reinforce = torch.mean(loss_reinforce, dim=0)
 
+                # probability of attention targets loss
+                loss_attention_targets = log_p_targets
+
+                # sum of KL divergences
+                loss_predicted_posteriors = predict_kl_div
+
                 # sum up into a hybrid loss
-                loss = loss_action + loss_baseline + loss_reinforce
+                loss = loss_attention_targets + loss_predicted_posteriors  # + loss_action + loss_baseline + loss_reinforce
 
                 # compute accuracy
                 correct = (predicted == y).float()

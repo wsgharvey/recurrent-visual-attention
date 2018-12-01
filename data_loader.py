@@ -156,7 +156,7 @@ class GenModelDataset(Dataset):
         self.supervise_indicator = 0
 
     def __getitem__(self, index):
-        self.supervise_indicator += supervise_attention_freq
+        self.supervise_indicator += self.supervise_attention_freq
         if self.supervise_indicator >= 1:
             self.supervise_indicator -= 1
             raise NotImplementedError("Mixed in attention targets are not yet implemented.")
@@ -175,7 +175,7 @@ class GenModelDataset(Dataset):
         digit_label = trace_dict['label']
         attention_target = torch.zeros(10)
         attention_target_exists = torch.tensor(0.)
-        return image, digit_label, target, target_exists
+        return image, digit_label  # , target, target_exists
 
     def __len__(self):
         return self.epoch_size
@@ -220,13 +220,9 @@ def get_supervised_attention_loader(batch_size,
 
     # define transforms
     normalize = transforms.Normalize((0.1307,), (0.3081,))
-    trans = transforms.Compose([
-        transforms.ToTensor(), normalize,
-    ])
 
     dataset = AttentionTargetDataset("attention_target_data",
-                                     transform=trans,
-                                     attention_target_transform=normalize_attention_loc)
+                                     transform=normalize)
 
     sampler = SubsetRandomSampler(range(len(dataset)))
 

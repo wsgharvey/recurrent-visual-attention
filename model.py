@@ -7,8 +7,8 @@ from torch.distributions import Normal
 
 from modules import baseline_network
 from modules import glimpse_network, core_network
-from modules import action_network, location_network
-
+from modules import action_network, discrete_location_network, location_network
+from attention_target_dataset import normalize_attention_loc
 
 class RecurrentAttention(nn.Module):
     """
@@ -59,11 +59,11 @@ class RecurrentAttention(nn.Module):
 
         self.sensor = glimpse_network(h_g, h_l, g, k, s, c)
         self.rnn = core_network(hidden_size, hidden_size)
-        self.locator = location_network(hidden_size, 2, std, constrain_mu)
+        self.locator = discrete_location_network(hidden_size, 784)
         self.classifier = action_network(hidden_size, num_classes)
         self.baseliner = baseline_network(hidden_size, 1)
 
-    def forward(self, x, h_t_prev, last=False):
+    def forward(self, x, h_t_prev, last=False, replace_lt=None):
         """
         Run the recurrent attention model for 1 timestep
         on the minibatch of images `x`.
@@ -99,7 +99,8 @@ class RecurrentAttention(nn.Module):
           output log probability vector over the classes.
         - log_pi: a vector of length (B,).
         """
-        mu, l_t, pre_tanh = self.locator(h_t_prev)
+        l_t, l_t_pdf = self.locator(h_t_prev, fix_l_t=replace_lt)
+        l_t = normalize_attention_loc(l_t)
         g_t = self.sensor(x, l_t)
         h_t = self.rnn(g_t, h_t_prev)
         b_t = self.baseliner(h_t).squeeze()
@@ -107,11 +108,9 @@ class RecurrentAttention(nn.Module):
         # we assume both dimensions are independent
         # 1. pdf of the joint is the product of the pdfs
         # 2. log of the product is the sum of the logs
-        log_pi = Normal(mu, self.std).log_prob(pre_tanh)
-        log_pi = torch.sum(log_pi, dim=1)
 
         if last:
             log_probas = self.classifier(h_t)
-            return h_t, l_t, b_t, log_probas, log_pi
+            return h_t, l_t, b_t, log_probas, l_t_pdf
 
-        return h_t, l_t, b_t, log_pi
+        return h_t, l_t, b_t, l_t_pdf
