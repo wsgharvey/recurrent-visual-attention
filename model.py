@@ -63,7 +63,7 @@ class RecurrentAttention(nn.Module):
         self.classifier = action_network(hidden_size, num_classes)
         self.baseliner = baseline_network(hidden_size, 1)
 
-    def forward(self, x, l_t_prev, h_t_prev, last=False):
+    def forward(self, x, h_t_prev, last=False):
         """
         Run the recurrent attention model for 1 timestep
         on the minibatch of images `x`.
@@ -99,9 +99,9 @@ class RecurrentAttention(nn.Module):
           output log probability vector over the classes.
         - log_pi: a vector of length (B,).
         """
-        g_t = self.sensor(x, l_t_prev)
+        mu, l_t, pre_tanh = self.locator(h_t_prev)
+        g_t = self.sensor(x, l_t)
         h_t = self.rnn(g_t, h_t_prev)
-        mu, l_t, pre_tanh = self.locator(h_t)
         b_t = self.baseliner(h_t).squeeze()
 
         # we assume both dimensions are independent

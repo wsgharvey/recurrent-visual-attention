@@ -138,10 +138,7 @@ class Trainer(object):
         h_t = torch.zeros(self.batch_size, self.hidden_size)
         h_t = Variable(h_t).type(dtype)
 
-        l_t = torch.Tensor(self.batch_size, 2).uniform_(-1, 1)
-        l_t = Variable(l_t).type(dtype)
-
-        return h_t, l_t
+        return h_t
 
     def train(self):
         """
@@ -225,7 +222,7 @@ class Trainer(object):
 
                 # initialize location vector and hidden state
                 self.batch_size = x.shape[0]
-                h_t, l_t = self.reset()
+                h_t = self.reset()
 
                 # save images
                 imgs = []
@@ -237,7 +234,7 @@ class Trainer(object):
                 baselines = []
                 for t in range(self.num_glimpses - 1):
                     # forward pass through model
-                    h_t, l_t, b_t, p = self.model(x, l_t, h_t)
+                    h_t, l_t, b_t, p = self.model(x, h_t)
 
                     # store
                     locs.append(l_t[0:9])
@@ -246,7 +243,7 @@ class Trainer(object):
 
                 # last iteration
                 h_t, l_t, b_t, log_probas, p = self.model(
-                    x, l_t, h_t, last=True
+                    x, h_t, last=True
                 )
                 log_pi.append(p)
                 baselines.append(b_t)
@@ -347,14 +344,14 @@ class Trainer(object):
 
             # initialize location vector and hidden state
             self.batch_size = x.shape[0]
-            h_t, l_t = self.reset()
+            h_t = self.reset()
 
             # extract the glimpses
             log_pi = []
             baselines = []
             for t in range(self.num_glimpses - 1):
                 # forward pass through model
-                h_t, l_t, b_t, p = self.model(x, l_t, h_t)
+                h_t, l_t, b_t, p = self.model(x, h_t)
 
                 # store
                 baselines.append(b_t)
@@ -362,7 +359,7 @@ class Trainer(object):
 
             # last iteration
             h_t, l_t, b_t, log_probas, p = self.model(
-                x, l_t, h_t, last=True
+                x, h_t, last=True
             )
             log_pi.append(p)
             baselines.append(b_t)
@@ -438,16 +435,16 @@ class Trainer(object):
 
             # initialize location vector and hidden state
             self.batch_size = x.shape[0]
-            h_t, l_t = self.reset()
+            h_t = self.reset()
 
             # extract the glimpses
             for t in range(self.num_glimpses - 1):
                 # forward pass through model
-                h_t, l_t, b_t, p = self.model(x, l_t, h_t)
+                h_t, l_t, b_t, p = self.model(x, h_t)
 
             # last iteration
             h_t, l_t, b_t, log_probas, p = self.model(
-                x, l_t, h_t, last=True
+                x, h_t, last=True
             )
 
             log_probas = log_probas.view(
