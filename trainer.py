@@ -214,7 +214,7 @@ class Trainer(object):
 
         tic = time.time()
         with tqdm(total=self.num_train) as pbar:
-            for i, (x, y) in enumerate(self.train_loader):
+            for i, (x, y, attention_targets, posterior_targets) in enumerate(self.train_loader):
                 if self.use_gpu:
                     x, y = x.cuda(), y.cuda()
                 x, y = Variable(x), Variable(y)
@@ -243,6 +243,10 @@ class Trainer(object):
                     locs.append(l_t[0:9])
                     baselines.append(b_t)
                     log_pi.append(p)
+
+                # probability that we propose targets
+                l_t_targets = arctanh(attention_targets)
+                log_p_targets = torch.distributions.Normal(l_t, self.std).log_prob(l_t_targets)
 
                 # last iteration
                 h_t, l_t, b_t, log_probas, p = self.model(

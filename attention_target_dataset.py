@@ -95,6 +95,7 @@ class AttentionTargetDataset(Dataset):
         posterior_targets = torch.Tensor([])
 
         for img_path, log_path in self._iter_raw_files(raw_path):
+            print(f"loading {img_path}")
             image = torch.Tensor(np.array(Image.open(img_path))).view(1, 28, 28)
             log = pickle.load(open(log_path, 'rb'))
             label = log["true_digit"].view(1)
