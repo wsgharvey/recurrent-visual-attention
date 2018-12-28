@@ -102,8 +102,8 @@ class AttentionTargetDataset(Dataset):
             image = torch.Tensor(np.array(Image.open(img_path))).view(1, 28, 28)
             log = pickle.load(open(log_path, 'rb'))
             label = log["true_digit"].view(1)
-            attention_target = torch.Tensor(log["designs"]).view(1, 10)
-            posterior_target = torch.cat([dp.view(1, 10) for dp in log['digit_posteriors']]).view(1, 11, 10)
+            attention_target = torch.Tensor(log["designs"]).view(1, -1)
+            posterior_target = torch.cat([dp.view(1, 10) for dp in log['digit_posteriors']]).view(1, -1, 10)
 
             images = torch.cat((images, image), dim=0)
             labels = torch.cat((labels, label), dim=0)
