@@ -6,7 +6,7 @@ from PIL import Image
 
 import torch
 from torch.utils.data.dataset import Dataset
-from torchvision.datasets.utils import makedir_exist_ok
+#from torchvision.datasets.utils import makedir_exist_ok
 
 
 def normalize_attention_loc(integers, w=28, h=28, T=1):
@@ -39,7 +39,7 @@ def normalize_attention_loc(integers, w=28, h=28, T=1):
 class AttentionTargetDataset(Dataset):
     data_file_name = 'training.pt'
 
-    def __init__(self, root, transform=None, label_transform=None, attention_target_transform=None, loadfrom=None):
+    def __init__(self, root, transform=None, label_transform=None, attention_target_transform=None, loadfrom=None, max_dataset_size=100000000):
         self.processed_folder = os.path.join(root, "processed")
         self.training_path = os.path.join(self.processed_folder, self.data_file_name)
         self.transform = transform
@@ -47,7 +47,7 @@ class AttentionTargetDataset(Dataset):
         self.attention_target_transform = attention_target_transform
 
         if loadfrom is not None:
-            self._process(loadfrom)
+            self._process(loadfrom, max_dataset_size)
 
         if not self._processed_data_exists():
             raise RuntimeError('No processed data found.')
@@ -75,7 +75,7 @@ class AttentionTargetDataset(Dataset):
 
         return image, label, attention_target, posterior_target
 
-    def _process(self, raw_path):
+    def _process(self, raw_path, max_dataset_size):
         """
         Loads data from specified folder, which should have format:
          - <raw_path>
@@ -90,14 +90,14 @@ class AttentionTargetDataset(Dataset):
         where each *.p is a pickled dictionary containing optimal attention
         locations in format ... with key ...
         """
-        makedir_exist_ok(self.processed_folder)
+        os.makedirs(self.processed_folder, exist_ok=True)
 
         images = torch.Tensor([])
         labels = torch.LongTensor([])
         attention_targets = torch.Tensor([])
         posterior_targets = torch.Tensor([])
 
-        for img_path, log_path in self._iter_raw_files(raw_path):
+        for img_path, log_path in self._iter_raw_files(raw_path, max_dataset_size):
             print(f"loading {img_path}")
             image = torch.Tensor(np.array(Image.open(img_path))).view(1, 28, 28)
             log = pickle.load(open(log_path, 'rb'))
@@ -114,7 +114,7 @@ class AttentionTargetDataset(Dataset):
         with open(self.training_path, 'wb') as f:
             torch.save(data, f)
 
-    def _iter_raw_files(self, raw_path):
+    def _iter_raw_files(self, raw_path, maximum=0):
         i = 0
         while True:
             img_path = os.path.join(raw_path, 'images', f"{i}.png")
@@ -122,6 +122,8 @@ class AttentionTargetDataset(Dataset):
             if os.path.exists(img_path):
                 yield img_path, log_path
                 i += 1
+                if i == maximum:
+                    break
             else:
                 break
 
@@ -139,6 +141,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Attention target dataset')
     parser.add_argument('raw_data_folder', type=str,
                         help='path of raw data folder')
+    parser.add_argument('-max_size', type=int, help='maximum number of data points to take')
     args = parser.parse_args()
 
-    AttentionTargetDataset("attention_target_data", loadfrom=args.raw_data_folder)
+    AttentionTargetDataset("attention_target_data", loadfrom=args.raw_data_folder, max_dataset_size=args.max_size)
