@@ -250,18 +250,22 @@ class Trainer(object):
                 for t in range(self.num_glimpses):
                     # forward pass through model
                     l_t_targets = attention_targets[:, t] if self.use_attention_targets else None
-                    l_t_targets = None                                                                       #### NOT FIXING LOCATIONS
-                    h_t, l_t, b_t, log_probas, p = self.model(x, h_t, last=True, replace_lt=l_t_targets)    # last=True means it always makes predictions
+                                                                                        #### NOT FIXING LOCATIONS
+                    h_t, l_t, b_t, log_probas, loc_dist = self.model(x, h_t, last=True, replace_lt=None)    # last=True means it always makes predictions
+
+                    p_sampled = loc_dist.log_prob(l_t)
+
                     # store
                     locs.append(l_t[0:9])
                     baselines.append(b_t)
-                    log_pi.append(p)
+                    log_pi.append(p_sampled)
 
-                    # probability that we propose targets
-                    log_p_targets.append(p)
-
-                    t_predicted = log_probas
                     if self.use_attention_targets:
+                        # probability that we propose targets
+                        p_targets = loc_dist.log_prob(l_t_targets)
+                        log_p_targets.append(p_targets)
+
+                        t_predicted = log_probas
                         t_targets = posterior_targets[:, t+1, :]
                         # KL(p,q) = posterior_loss(q,p) - q is logs, p is not
                         kl_div = torch.nn.KLDivLoss(size_average=False)(log_probas,
@@ -383,17 +387,17 @@ class Trainer(object):
             baselines = []
             for t in range(self.num_glimpses - 1):
                 # forward pass through model
-                h_t, l_t, b_t, p = self.model(x, h_t)
+                h_t, unnormed_l_t, b_t, loc_dist = self.model(x, h_t)
 
                 # store
                 baselines.append(b_t)
-                log_pi.append(p)
+                log_pi.append(loc_dist.log_prob(unnormed_l_t))
 
             # last iteration
-            h_t, l_t, b_t, log_probas, p = self.model(
+            h_t, unnormed_l_t, b_t, log_probas, loc_dist = self.model(
                 x, h_t, last=True
             )
-            log_pi.append(p)
+            log_pi.append(loc_dist.log_prob(unnormed_l_t))
             baselines.append(b_t)
 
             # convert list to tensors and reshape

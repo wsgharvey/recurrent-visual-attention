@@ -371,10 +371,8 @@ class discrete_location_network(nn.Module):
     def forward(self, h_t, fix_l_t=None):
         probs = self.fc(h_t.detach())
         dist = torch.distributions.Categorical(probs=probs)
-        l_t = dist.sample()  # if fix_l_t is None else fix_l_t
-        l_t_pdf = dist.log_prob(l_t)  # won't work as l_t is normalized here
-
-        return l_t, l_t_pdf
+        l_t = dist.sample() if fix_l_t is None else fix_l_t
+        return l_t, dist
 
 
 class baseline_network(nn.Module):
