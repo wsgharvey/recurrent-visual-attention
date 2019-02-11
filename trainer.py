@@ -249,7 +249,7 @@ class Trainer(object):
                 for t in range(self.num_glimpses):
                     # forward pass through model
                     l_t_targets = attention_targets[:, t] if self.use_attention_targets else None
-                    l_t_targets = None
+                    l_t_targets = None                                                                       #### NOT FIXING LOCATIONS
                     h_t, l_t, b_t, log_probas, p = self.model(x, h_t, last=True, replace_lt=l_t_targets)    # last=True means it always makes predictions
                     # store
                     locs.append(l_t[0:9])
@@ -300,7 +300,7 @@ class Trainer(object):
                        loss_baseline + \
                        loss_reinforce + \
                        0.000 * (loss_attention_targets if self.use_attention_targets else 0) + \
-                       0.000 * (loss_predicted_posteriors if self.use_attention_targets else 0)
+                       0.000 * (loss_predicted_posteriors if self.use_attention_targets else 0)                    # NOT USING ATTENTION TARGETS FOR TRAINING
 
                 # compute accuracy
                 correct = (predicted == y).float()
