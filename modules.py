@@ -6,8 +6,6 @@ from torch.autograd import Variable
 
 import numpy as np
 
-from attention_target_dataset import normalize_attention_loc
-
 
 class retina(object):
     """

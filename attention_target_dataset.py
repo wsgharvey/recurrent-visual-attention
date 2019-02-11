@@ -33,7 +33,8 @@ def normalize_attention_loc(integers, w=28, h=28, T=1):
     pixel_x = 2*pixel_x - 1
     pixel_y = 2*pixel_y - 1
 
-    return torch.cat([pixel_x.view(-1, 1), pixel_y.view(-1, 1)], dim=1)
+    return torch.cat([pixel_x.unsqueeze(-1), pixel_y.unsqueeze(-1)], dim=-1)
+
 
 
 class AttentionTargetDataset(Dataset):

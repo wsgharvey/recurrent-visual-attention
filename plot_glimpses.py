@@ -1,13 +1,14 @@
 import pickle
 import argparse
 import numpy as np
+import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 from utils import denormalize, bounding_box
-
+from attention_target_dataset import normalize_attention_loc
 
 def parse_arguments():
     arg = argparse.ArgumentParser()
@@ -28,6 +29,7 @@ def main(plot_dir, epoch):
     locations = pickle.load(
         open(plot_dir + "l_{}.p".format(epoch), "rb")
     )
+    locations = normalize_attention_loc(torch.tensor(locations)).numpy()
 
     glimpses = np.concatenate(glimpses)
 
