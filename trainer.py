@@ -66,6 +66,7 @@ class Trainer(object):
         # training params
         self.epochs = config.epochs
         self.use_attention_targets = config.use_attention_targets
+        self.attention_target_weight = config.attention_target_weight
         self.start_epoch = 0
         self.momentum = config.momentum
         self.lr = config.init_lr
@@ -299,8 +300,8 @@ class Trainer(object):
                 loss = loss_action + \
                        loss_baseline + \
                        loss_reinforce + \
-                       0.000 * (loss_attention_targets if self.use_attention_targets else 0) + \
-                       0.000 * (loss_predicted_posteriors if self.use_attention_targets else 0)                    # NOT USING ATTENTION TARGETS FOR TRAINING
+                       self.attention_target_weight * (loss_attention_targets if self.use_attention_targets else 0) + \
+                       0.000 * (loss_predicted_posteriors if self.use_attention_targets else 0)
 
                 # compute accuracy
                 correct = (predicted == y).float()
