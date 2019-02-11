@@ -105,8 +105,8 @@ class retina(object):
             from_y, to_y = patch_y[i], patch_y[i] + size
 
             # cast to ints
-            from_x, to_x = from_x.data[0], to_x.data[0]
-            from_y, to_y = from_y.data[0], to_y.data[0]
+            from_x, to_x = from_x.data.item(), to_x.data.item()
+            from_y, to_y = from_y.data.item(), to_y.data.item()
 
             # pad tensor in case exceeds
             if self.exceeds(from_x, to_x, from_y, to_y, T):
@@ -371,7 +371,7 @@ class discrete_location_network(nn.Module):
     def forward(self, h_t, fix_l_t=None):
         probs = self.fc(h_t.detach())
         dist = torch.distributions.Categorical(probs=probs)
-        l_t = dist.sample() if fix_l_t is None else fix_l_t
+        l_t = dist.sample()  # if fix_l_t is None else fix_l_t
         l_t_pdf = dist.log_prob(l_t)  # won't work as l_t is normalized here
 
         return l_t, l_t_pdf

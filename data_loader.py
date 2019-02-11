@@ -4,7 +4,7 @@ from utils import plot_images
 import torch
 from torchvision import datasets
 from torchvision import transforms
-from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 from torch.utils.data.dataset import Dataset
 
 # for generative model
@@ -219,7 +219,7 @@ def get_supervised_attention_loader(batch_size,
                                     pin_memory=False):
 
     # define transforms
-    normalize = transforms.Normalize((0.1307,), (0.3081,))
+    normalize = transforms.Normalize((0.1307*255,), (0.3081*255,))  # normalise from [0, 255] to neural net compatible stuff
 
     dataset = AttentionTargetDataset("attention_target_data",
                                      transform=normalize)

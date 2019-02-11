@@ -65,6 +65,7 @@ class Trainer(object):
 
         # training params
         self.epochs = config.epochs
+        self.use_attention_targets = config.use_attention_targets
         self.start_epoch = 0
         self.momentum = config.momentum
         self.lr = config.init_lr
@@ -211,7 +212,18 @@ class Trainer(object):
 
         tic = time.time()
         with tqdm(total=self.num_train) as pbar:
-            for i, (x, y, attention_targets, posterior_targets) in enumerate(self.train_loader):
+            for i, data_batch in enumerate(self.train_loader):
+                if self.use_attention_targets:
+                    x, y, attention_targets, posterior_targets = data_batch
+                else:
+                    x, y = data_batch
+
+                # if i == 0:
+                #     print(y[0])
+                #     import matplotlib.pyplot as plt
+                #     plt.imshow(x[0, 0].numpy())
+                #     plt.show()
+
                 if self.use_gpu:
                     x, y = x.cuda(), y.cuda()
                 x, y = Variable(x), Variable(y)
@@ -236,7 +248,8 @@ class Trainer(object):
                 baselines = []
                 for t in range(self.num_glimpses):
                     # forward pass through model
-                    l_t_targets = attention_targets[:, t]
+                    l_t_targets = attention_targets[:, t] if self.use_attention_targets else None
+                    l_t_targets = None
                     h_t, l_t, b_t, log_probas, p = self.model(x, h_t, last=True, replace_lt=l_t_targets)    # last=True means it always makes predictions
                     # store
                     locs.append(l_t[0:9])
@@ -246,18 +259,20 @@ class Trainer(object):
                     # probability that we propose targets
                     log_p_targets.append(p)
 
-                    t_targets = posterior_targets[:, t, :]
                     t_predicted = log_probas
-                    # KL(p,q) = posterior_loss(q,p) - q is logs, p is not
-                    kl_div = torch.nn.KLDivLoss(size_average=False)(log_probas,
-                                                                    t_targets)/len(log_probas)
-                    kl_divs.append(kl_div)
+                    if self.use_attention_targets:
+                        t_targets = posterior_targets[:, t+1, :]
+                        # KL(p,q) = posterior_loss(q,p) - q is logs, p is not
+                        kl_div = torch.nn.KLDivLoss(size_average=False)(log_probas,
+                                                                        t_targets)/len(log_probas)
+                        kl_divs.append(kl_div)
 
                 # convert list to tensors and reshape
                 baselines = torch.stack(baselines).transpose(1, 0)
                 log_pi = torch.stack(log_pi).transpose(1, 0)
-                log_p_targets = torch.sum(torch.stack(log_p_targets))
-                predict_kl_div = torch.sum(torch.stack(kl_divs))
+                if self.use_attention_targets:
+                    log_p_targets = torch.sum(torch.stack(log_p_targets))
+                    predict_kl_div = torch.sum(torch.stack(kl_divs))
 
                 # calculate reward
                 predicted = torch.max(log_probas, 1)[1]
@@ -274,22 +289,26 @@ class Trainer(object):
                 loss_reinforce = torch.sum(-log_pi*adjusted_reward, dim=1)
                 loss_reinforce = torch.mean(loss_reinforce, dim=0)
 
-                # probability of attention targets loss
-                loss_attention_targets = log_p_targets
-
-                # sum of KL divergences
-                loss_predicted_posteriors = predict_kl_div
+                if self.use_attention_targets:
+                    # probability of attention targets loss
+                    loss_attention_targets = log_p_targets
+                    # sum of KL divergences
+                    loss_predicted_posteriors = predict_kl_div
 
                 # sum up into a hybrid loss
-                loss = loss_attention_targets + loss_predicted_posteriors  # + loss_action + loss_baseline + loss_reinforce
+                loss = loss_action + \
+                       loss_baseline + \
+                       loss_reinforce + \
+                       0.000 * (loss_attention_targets if self.use_attention_targets else 0) + \
+                       0.000 * (loss_predicted_posteriors if self.use_attention_targets else 0)
 
                 # compute accuracy
                 correct = (predicted == y).float()
                 acc = 100 * (correct.sum() / len(y))
 
                 # store
-                losses.update(loss.data[0], x.size()[0])
-                accs.update(acc.data[0], x.size()[0])
+                losses.update(loss.item(), x.size()[0])
+                accs.update(acc.item(), x.size()[0])
 
                 # compute gradients and update SGD
                 self.optimizer.zero_grad()
@@ -303,7 +322,7 @@ class Trainer(object):
                 pbar.set_description(
                     (
                         "{:.1f}s - loss: {:.3f} - acc: {:.3f}".format(
-                            (toc-tic), loss.data[0], acc.data[0]
+                            (toc-tic), loss.data.item(), acc.data.item()
                         )
                     )
                 )
@@ -415,8 +434,8 @@ class Trainer(object):
             acc = 100 * (correct.sum() / (len(y)))
 
             # store
-            losses.update(loss.data[0], x.size()[0])
-            accs.update(acc.data[0], x.size()[0])
+            losses.update(loss.data.item(), x.size()[0])
+            accs.update(acc.data.item(), x.size()[0])
 
         # log to tensorboard
         if self.use_tensorboard:

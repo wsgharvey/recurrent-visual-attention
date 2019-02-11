@@ -133,6 +133,26 @@ class AttentionTargetDataset(Dataset):
     def __len__(self):
         return len(self.images)
 
+def MixtureDataset(Dataset):
+    def __init__(self, targets_dataset, other_dataset, targets_prob):
+        self.targets_dataset = targets_dataset
+        self.other_dataset = other_dataset
+        self.mixture_prob = mixture_prob
+
+        self.num_targets_due = 0
+
+    def _use_target(self):
+        self.num_targets_due += targets_prob
+        if self.num_targets_due >= 1:
+            self.num_targets_due -= 1
+            return True
+        return False
+
+    def __getitem__(self, index):
+        if self._use_target():
+            return self.targets_dataset.get_item(index)
+        return self.other_dataset.get_item(index)
+
 
 if __name__ == '__main__':
     import argparse
