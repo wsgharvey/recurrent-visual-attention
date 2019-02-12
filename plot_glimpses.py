@@ -29,6 +29,7 @@ def main(plot_dir, epoch):
     locations = pickle.load(
         open(plot_dir + "l_{}.p".format(epoch), "rb")
     )
+    print(locations)
     locations = normalize_attention_loc(torch.tensor(locations)).numpy()
 
     glimpses = np.concatenate(glimpses)

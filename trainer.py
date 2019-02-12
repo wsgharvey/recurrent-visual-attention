@@ -304,7 +304,7 @@ class Trainer(object):
                 loss = loss_action + \
                        loss_baseline + \
                        loss_reinforce + \
-                       self.attention_target_weight * (loss_attention_targets if self.use_attention_targets else 0) + \
+                       -self.attention_target_weight * (loss_attention_targets if self.use_attention_targets else 0) + \
                        0.000 * (loss_predicted_posteriors if self.use_attention_targets else 0)
 
                 # compute accuracy
