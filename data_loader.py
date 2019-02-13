@@ -9,7 +9,8 @@ from torch.utils.data.dataset import Dataset
 
 # for generative model
 from mea.examples.mnist import mnist_model
-from attention_target_dataset import AttentionTargetDataset, normalize_attention_loc
+from attention_target_dataset import AttentionTargetDataset, MixtureDataset
+
 
 def get_train_valid_loader(data_dir,
                            batch_size,
@@ -137,13 +138,13 @@ def get_test_loader(data_dir,
 
     return data_loader
 
+
 class GenModelDataset(Dataset):
     def __init__(self,
                  transform,
                  epoch_size,
                  fix_data,
-                 fix_offset,
-                 supervise_attention_freq):
+                 fix_offset=0):
         """
         transform: preprocessing step for data
         fix_data: if True, will use index as random seed when returning a sample
@@ -152,18 +153,8 @@ class GenModelDataset(Dataset):
         self.epoch_size = epoch_size
         self.fix_data = fix_data
         self.fix_offset = fix_offset
-        self.supervise_attention_freq = supervise_attention_freq
-        self.supervise_indicator = 0
 
     def __getitem__(self, index):
-        self.supervise_indicator += self.supervise_attention_freq
-        if self.supervise_indicator >= 1:
-            self.supervise_indicator -= 1
-            raise NotImplementedError("Mixed in attention targets are not yet implemented.")
-        else:
-            return self._generate_unsupervised(index)
-
-    def _generate_unsupervised(self, index):
         if self.fix_data:
             rng_state = torch.get_rng_state()
             torch.manual_seed(index+self.fix_offset)
@@ -173,20 +164,18 @@ class GenModelDataset(Dataset):
         raw = trace_dict['image'].data.view(1, 28, 28)
         image = self.transform(raw)
         digit_label = trace_dict['label']
-        attention_target = torch.zeros(10)
-        attention_target_exists = torch.tensor(0.)
-        return image, digit_label  # , target, target_exists
+        return image, digit_label
 
     def __len__(self):
         return self.epoch_size
+
 
 def get_gen_model_loader(batch_size,
                          epoch_size,
                          fix_data,
                          fix_offset=0,
                          num_workers=4,
-                         pin_memory=False,
-                         supervise_attention_freq=0):
+                         pin_memory=False):
     """
     imitates data loaders but supplies infinite stream from generative model
 
@@ -202,8 +191,7 @@ def get_gen_model_loader(batch_size,
     dataset = GenModelDataset(normalize,
                               epoch_size,
                               fix_data=fix_data,
-                              fix_offset=fix_offset,
-                              supervise_attention_freq=supervise_attention_freq)
+                              fix_offset=fix_offset)
 
     sampler = SubsetRandomSampler(range(epoch_size))
 
@@ -214,12 +202,13 @@ def get_gen_model_loader(batch_size,
 
     return data_loader
 
+
 def get_supervised_attention_loader(batch_size,
                                     num_workers=4,
                                     pin_memory=False):
 
     # define transforms
-    normalize = transforms.Normalize((0.1307*255,), (0.3081*255,))  # normalise from [0, 255] to neural net compatible stuff
+    normalize = transforms.Normalize((0.1307*255,), (0.3081*255,))
 
     dataset = AttentionTargetDataset("attention_target_data",
                                      transform=normalize)
@@ -232,3 +221,37 @@ def get_supervised_attention_loader(batch_size,
     )
 
     return data_loader
+
+
+def get_partially_supervised_attention_loader(batch_size,
+                                              supervised_prob,
+                                              epoch_size,
+                                              num_workers=4,
+                                              pin_memory=False):
+
+    unsupervised_normalize = transforms.Normalize((0.1307,), (0.3081,))
+    supervised_normalize = transforms.Normalize((0.1307*255,), (0.3081*255,))
+
+    unsupervised_dataset = GenModelDataset(unsupervised_normalize,
+                                           epoch_size=None,
+                                           fix_data=False)
+
+    supervised_dataset = AttentionTargetDataset("attention_target_data",
+                                                transform=supervised_normalize)
+
+    mixture_dataset = MixtureDataset(supervised_dataset,
+                                     unsupervised_dataset,
+                                     supervised_prob,
+                                     epoch_size)
+
+    sampler = SubsetRandomSampler(range(epoch_size))
+
+    data_loader = torch.utils.data.DataLoader(
+        mixture_dataset, batch_size=batch_size, sampler=sampler,
+        num_workers=num_workers, pin_memory=pin_memory,
+    )
+
+    return data_loader
+
+
+

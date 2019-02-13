@@ -134,16 +134,42 @@ class AttentionTargetDataset(Dataset):
     def __len__(self):
         return len(self.images)
 
-def MixtureDataset(Dataset):
-    def __init__(self, targets_dataset, other_dataset, targets_prob):
+
+class MixtureDataset(Dataset):
+    def __init__(self,
+                 targets_dataset,
+                 other_dataset,
+                 targets_prob,
+                 epoch_size):
         self.targets_dataset = targets_dataset
         self.other_dataset = other_dataset
-        self.mixture_prob = mixture_prob
+        self.targets_prob = targets_prob
+        self.epoch_size = epoch_size
 
         self.num_targets_due = 0
 
+        _, _, example_att_targets, example_pos_targets \
+            = targets_dataset.__getitem__(0)
+        self.att_target_shape = example_att_targets.shape
+        self.pos_target_shape = example_pos_targets.shape
+
+    def _augment_data(self, datum, has_targets):
+        """
+        puts data into a standard form, whether or not it
+        comes with a target
+        """
+        if has_targets:
+            x, y, attention_target, posterior_target = datum
+        else:
+            x, y = datum
+            attention_target = torch.zeros(self.att_target_shape)
+            posterior_target = torch.zeros(self.pos_target_shape)
+        return x, y,\
+            attention_target, posterior_target,\
+            torch.tensor(1. if has_targets else 0.)
+
     def _use_target(self):
-        self.num_targets_due += targets_prob
+        self.num_targets_due += self.targets_prob
         if self.num_targets_due >= 1:
             self.num_targets_due -= 1
             return True
@@ -151,8 +177,17 @@ def MixtureDataset(Dataset):
 
     def __getitem__(self, index):
         if self._use_target():
-            return self.targets_dataset.get_item(index)
-        return self.other_dataset.get_item(index)
+            return self._augment_data(
+                self.targets_dataset.__getitem__(index),
+                True
+            )
+        return self._augment_data(
+            self.other_dataset.__getitem__(index),
+            False
+        )
+
+    def __len__(self):
+        return self.epoch_size
 
 
 if __name__ == '__main__':
