@@ -64,8 +64,8 @@ data_arg.add_argument('--show_sample', type=str2bool, default=False,
 train_arg = add_argument_group('Training Params')
 train_arg.add_argument('--is_train', type=str2bool, default=True,
                        help='Whether to train or test the model')
-train_arg.add_argument('--use_attention_targets', type=str2bool, default=False,
-                       help='Whether to use targets for training the atteniton mechanism.')
+train_arg.add_argument('--supervised_attention_prob', type=float, default=0.,
+                       help='Proportion of time to use targets for training the attention mechanism.')
 train_arg.add_argument('--attention_target_weight', type=float, default=100000.4,
                        help='Weighting given to attention targets in loss.')
 train_arg.add_argument('--momentum', type=float, default=0.5,

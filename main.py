@@ -3,7 +3,7 @@ import torch
 from trainer import Trainer
 from config import get_config
 from utils import prepare_dirs, save_config
-from data_loader import get_gen_model_loader, get_supervised_attention_loader
+from data_loader import get_gen_model_loader, get_partially_supervised_attention_loader
 
 
 def main(config):
@@ -20,17 +20,12 @@ def main(config):
 
     # instantiate data loaders
     if config.is_train:
-        if config.use_attention_targets:
-            train_loader = get_supervised_attention_loader(
-                config.batch_size
-            )
-        else:
-            train_loader = get_gen_model_loader(
-                config.batch_size,
-                epoch_size=4210,   # 54000
-                fix_data=True,
-                **kwargs
-            )
+        train_loader = get_partially_supervised_attention_loader(
+            config.batch_size,
+            config.supervised_attention_prob,
+            epoch_size=4210,
+            **kwargs
+        )
         valid_loader = get_gen_model_loader(
             config.batch_size,
             epoch_size=600,

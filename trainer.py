@@ -65,7 +65,7 @@ class Trainer(object):
 
         # training params
         self.epochs = config.epochs
-        self.use_attention_targets = config.use_attention_targets
+        self.supervised_attention_prob = config.supervised_attention_prob
         self.attention_target_weight = config.attention_target_weight
         self.start_epoch = 0
         self.momentum = config.momentum
@@ -214,16 +214,10 @@ class Trainer(object):
         tic = time.time()
         with tqdm(total=self.num_train) as pbar:
             for i, data_batch in enumerate(self.train_loader):
-                if self.use_attention_targets:
-                    x, y, attention_targets, posterior_targets = data_batch
-                else:
-                    x, y = data_batch
-
-                # if i == 0:
-                #     print(y[0])
-                #     import matplotlib.pyplot as plt
-                #     plt.imshow(x[0, 0].numpy())
-                #     plt.show()
+                x, y, \
+                    attention_targets, \
+                    posterior_targets, \
+                    has_targets = data_batch
 
                 if self.use_gpu:
                     x, y = x.cuda(), y.cuda()
@@ -249,9 +243,9 @@ class Trainer(object):
                 baselines = []
                 for t in range(self.num_glimpses):
                     # forward pass through model
-                    l_t_targets = attention_targets[:, t] if self.use_attention_targets else None
-                                                                                        #### NOT FIXING LOCATIONS
-                    h_t, l_t, b_t, log_probas, loc_dist = self.model(x, h_t, last=True, replace_lt=None)    # last=True means it always makes predictions
+                    l_t_targets = attention_targets[:, t]                              #### NOT FIXING LOCATIONS
+                    h_t, l_t, b_t, log_probas, loc_dist = \
+                        self.model(x, h_t, last=True, replace_lt=None)
 
                     p_sampled = loc_dist.log_prob(l_t)
 
@@ -260,24 +254,24 @@ class Trainer(object):
                     baselines.append(b_t)
                     log_pi.append(p_sampled)
 
-                    if self.use_attention_targets:
-                        # probability that we propose targets
-                        p_targets = loc_dist.log_prob(l_t_targets)
-                        log_p_targets.append(p_targets)
+                    # probability that we propose targets
+                    p_current_targets = loc_dist.log_prob(l_t_targets)
+                    p_current_targets = torch.dot(p_current_targets,
+                                                  has_targets)
+                    log_p_targets.append(p_current_targets)
 
-                        t_predicted = log_probas
-                        t_targets = posterior_targets[:, t+1, :]
-                        # KL(p,q) = posterior_loss(q,p) - q is logs, p is not
-                        kl_div = torch.nn.KLDivLoss(size_average=False)(log_probas,
-                                                                        t_targets)/len(log_probas)
-                        kl_divs.append(kl_div)
+                    # t_predicted = log_probas
+                    # t_targets = posterior_targets[:, t+1, :]
+                    # # KL(p,q) = posterior_loss(q,p) - q is logs, p is not
+                    # kl_div = torch.nn.KLDivLoss(size_average=False)(log_probas,
+                    #                                                 t_targets)/len(log_probas)
+                    # kl_divs.append(kl_div)
 
                 # convert list to tensors and reshape
                 baselines = torch.stack(baselines).transpose(1, 0)
                 log_pi = torch.stack(log_pi).transpose(1, 0)
-                if self.use_attention_targets:
-                    log_p_targets = torch.sum(torch.stack(log_p_targets))
-                    predict_kl_div = torch.sum(torch.stack(kl_divs))
+                log_p_targets = torch.sum(torch.stack(log_p_targets))
+                # predict_kl_div = torch.sum(torch.stack(kl_divs))
 
                 # calculate reward
                 predicted = torch.max(log_probas, 1)[1]
@@ -294,18 +288,16 @@ class Trainer(object):
                 loss_reinforce = torch.sum(-log_pi*adjusted_reward, dim=1)
                 loss_reinforce = torch.mean(loss_reinforce, dim=0)
 
-                if self.use_attention_targets:
-                    # probability of attention targets loss
-                    loss_attention_targets = log_p_targets
-                    # sum of KL divergences
-                    loss_predicted_posteriors = predict_kl_div
+                # probability of attention targets loss
+                loss_attention_targets = log_p_targets
+                # sum of KL divergences
+                # loss_predicted_posteriors = predict_kl_div
 
                 # sum up into a hybrid loss
                 loss = loss_action + \
                        loss_baseline + \
                        loss_reinforce + \
-                       -self.attention_target_weight * (loss_attention_targets if self.use_attention_targets else 0) + \
-                       0.000 * (loss_predicted_posteriors if self.use_attention_targets else 0)
+                       -self.attention_target_weight * loss_attention_targets
 
                 # compute accuracy
                 correct = (predicted == y).float()
