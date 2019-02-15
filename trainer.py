@@ -239,13 +239,14 @@ class Trainer(object):
                 locs = []
                 log_pi = []
                 log_p_targets = []
-                kl_divs = []
                 baselines = []
                 for t in range(self.num_glimpses):
                     # forward pass through model
-                    l_t_targets = attention_targets[:, t]                              #### NOT FIXING LOCATIONS
+                    l_t_targets = attention_targets[:, t]
                     h_t, l_t, b_t, log_probas, loc_dist = \
-                        self.model(x, h_t, last=True, replace_lt=None)
+                        self.model(x, h_t, last=True,
+                                   replace_l_t=has_targets,
+                                   new_l_t=l_t_targets)
 
                     p_sampled = loc_dist.log_prob(l_t)
 
@@ -257,7 +258,8 @@ class Trainer(object):
                     # probability that we propose targets
                     p_current_targets = loc_dist.log_prob(l_t_targets)
                     p_current_targets = torch.dot(p_current_targets,
-                                                  has_targets)
+                                                  has_targets.type(
+                                                      torch.FloatTensor))
                     log_p_targets.append(p_current_targets)
 
                     # t_predicted = log_probas
@@ -271,7 +273,6 @@ class Trainer(object):
                 baselines = torch.stack(baselines).transpose(1, 0)
                 log_pi = torch.stack(log_pi).transpose(1, 0)
                 log_p_targets = torch.sum(torch.stack(log_p_targets))
-                # predict_kl_div = torch.sum(torch.stack(kl_divs))
 
                 # calculate reward
                 predicted = torch.max(log_probas, 1)[1]

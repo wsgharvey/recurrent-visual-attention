@@ -240,7 +240,7 @@ def get_partially_supervised_attention_loader(batch_size,
                                      unsupervised_dataset,
                                      supervised_prob)
 
-    # sampler only needs the __len__ attribute to be big
+    # sampler only used for the __len__ attribute
     sampler = SequentialSampler(range(fake_epoch_size))
     data_loader = torch.utils.data.DataLoader(
         mixture_dataset, batch_size=batch_size, sampler=sampler,

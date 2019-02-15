@@ -60,7 +60,7 @@ class AttentionTargetDataset(Dataset):
     def __getitem__(self, index):
         image = self.images[index]
         label = self.labels[index]
-        attention_target = self.attention_targets[index]
+        attention_target = self.attention_targets[index].type(torch.LongTensor)
         posterior_target = self.posterior_targets[index]
 
         # image = Image.fromarray(image.numpy(), mode='L')
@@ -74,7 +74,6 @@ class AttentionTargetDataset(Dataset):
 
         if self.attention_target_transform is not None:
             attention_target = self.attention_target_transform(attention_target)
-
         return image, label, attention_target, posterior_target
 
     def _process(self, raw_path, max_dataset_size):
@@ -161,11 +160,11 @@ class MixtureDataset(Dataset):
             x, y, attention_target, posterior_target = datum
         else:
             x, y = datum
-            attention_target = torch.zeros(self.att_target_shape)
+            attention_target = torch.zeros(self.att_target_shape).type(torch.LongTensor)
             posterior_target = torch.zeros(self.pos_target_shape)
         return x, y,\
             attention_target, posterior_target,\
-            torch.tensor(1. if has_targets else 0.)
+            torch.tensor(1 if has_targets else 0)
 
     def _use_target(self):
         return torch.rand((1, 1)).item() < self.targets_prob
