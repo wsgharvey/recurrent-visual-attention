@@ -172,7 +172,7 @@ class MixtureDataset(Dataset):
 
     def __getitem__(self, index):
         if self._use_target():
-            target_index = torch.randint(4210, (1, 1)).item()
+            target_index = int(torch.randint(4210, (1, 1)).item())
             return self._augment_data(
                 self.targets_dataset.__getitem__(target_index),
                 True
