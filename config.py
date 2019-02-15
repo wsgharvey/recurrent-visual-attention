@@ -66,7 +66,7 @@ train_arg.add_argument('--is_train', type=str2bool, default=True,
                        help='Whether to train or test the model')
 train_arg.add_argument('--supervised_attention_prob', type=float, default=0.,
                        help='Proportion of time to use targets for training the attention mechanism.')
-train_arg.add_argument('--attention_target_weight', type=float, default=100000.4,
+train_arg.add_argument('--attention_target_weight', type=float, default=1,
                        help='Weighting given to attention targets in loss.')
 train_arg.add_argument('--momentum', type=float, default=0.5,
                        help='Nesterov momentum value')
@@ -78,6 +78,8 @@ train_arg.add_argument('--lr_patience', type=int, default=10,
                        help='Number of epochs to wait before reducing lr')
 train_arg.add_argument('--train_patience', type=int, default=50,
                        help='Number of epochs to wait before stopping train')
+train_arg.add_argument('--train_per_valid', type=int, default=5000,
+                       help='Number of training traces to use between validations.')
 
 
 # other params

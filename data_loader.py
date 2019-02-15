@@ -181,9 +181,6 @@ def get_gen_model_loader(batch_size,
 
     fix random seed externally if desired
 
-    supervise_attention_freq (float in range [0, 1]) is how often to give a
-    sample with attention targets
-
     actually very silly
     """
     normalize = transforms.Normalize((0.1307,), (0.3081,))
@@ -225,7 +222,6 @@ def get_supervised_attention_loader(batch_size,
 
 def get_partially_supervised_attention_loader(batch_size,
                                               supervised_prob,
-                                              epoch_size,
                                               num_workers=4,
                                               pin_memory=False):
 
@@ -241,17 +237,13 @@ def get_partially_supervised_attention_loader(batch_size,
 
     mixture_dataset = MixtureDataset(supervised_dataset,
                                      unsupervised_dataset,
-                                     supervised_prob,
-                                     epoch_size)
+                                     supervised_prob)
 
-    sampler = SubsetRandomSampler(range(epoch_size))
-
+    # sampler only needs the __len__ attribute to be big
+    sampler = SequentialSampler(range(1000000000))
     data_loader = torch.utils.data.DataLoader(
         mixture_dataset, batch_size=batch_size, sampler=sampler,
         num_workers=num_workers, pin_memory=pin_memory,
     )
 
     return data_loader
-
-
-

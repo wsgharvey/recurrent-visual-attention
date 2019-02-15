@@ -6,7 +6,7 @@ from PIL import Image
 
 import torch
 from torch.utils.data.dataset import Dataset
-#from torchvision.datasets.utils import makedir_exist_ok
+from torch.utils.data.sampler import SubsetRandomSampler
 
 
 def normalize_attention_loc(integers, w=28, h=28, T=1):
@@ -139,12 +139,10 @@ class MixtureDataset(Dataset):
     def __init__(self,
                  targets_dataset,
                  other_dataset,
-                 targets_prob,
-                 epoch_size):
+                 targets_prob):
         self.targets_dataset = targets_dataset
         self.other_dataset = other_dataset
         self.targets_prob = targets_prob
-        self.epoch_size = epoch_size
 
         self.num_targets_due = 0
 
@@ -169,25 +167,24 @@ class MixtureDataset(Dataset):
             torch.tensor(1. if has_targets else 0.)
 
     def _use_target(self):
-        self.num_targets_due += self.targets_prob
-        if self.num_targets_due >= 1:
-            self.num_targets_due -= 1
-            return True
-        return False
+        # self.num_targets_due += self.targets_prob
+        # if self.num_targets_due >= 1:
+        #     self.num_targets_due -= 1
+        #     return True
+        # return False
+        return torch.rand((1, 1)).item() < self.targets_prob
 
     def __getitem__(self, index):
         if self._use_target():
+            target_index = torch.randint(4210, (1, 1)).item()
             return self._augment_data(
-                self.targets_dataset.__getitem__(index),
+                self.targets_dataset.__getitem__(target_index),
                 True
             )
         return self._augment_data(
             self.other_dataset.__getitem__(index),
             False
         )
-
-    def __len__(self):
-        return self.epoch_size
 
 
 if __name__ == '__main__':

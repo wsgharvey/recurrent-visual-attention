@@ -54,8 +54,9 @@ class Trainer(object):
         # data params
         if config.is_train:
             self.train_loader = data_loader[0]
+            self.iter_train_loader = iter(self.train_loader)
             self.valid_loader = data_loader[1]
-            self.num_train = len(self.train_loader.sampler.indices)
+            self.train_per_valid = config.train_per_valid
             self.num_valid = len(self.valid_loader.sampler.indices)
         else:
             self.test_loader = data_loader
@@ -154,8 +155,8 @@ class Trainer(object):
         if self.resume:
             self.load_checkpoint(best=False)
 
-        print("\n[*] Train on {} samples, validate on {} samples".format(
-            self.num_train, self.num_valid)
+        print("\n[*] Train on {} samples between validations, validate on {} samples".format(
+            self.train_per_valid, self.num_valid)
         )
 
         for epoch in range(self.start_epoch, self.epochs):
@@ -198,6 +199,15 @@ class Trainer(object):
                  }, is_best
             )
 
+    def iter_train_chunk(self):
+        """
+        Iterates over some number of batches of training data.
+        """
+        i = 0
+        while i < self.train_per_valid:
+            yield next(self.iter_train_loader)
+            i += self.batch_size
+
     def train_one_epoch(self, epoch):
         """
         Train the model for 1 epoch of the training set.
@@ -212,8 +222,8 @@ class Trainer(object):
         accs = AverageMeter()
 
         tic = time.time()
-        with tqdm(total=self.num_train) as pbar:
-            for i, data_batch in enumerate(self.train_loader):
+        with tqdm(total=self.train_per_valid) as pbar:
+            for i, data_batch in enumerate(self.iter_train_chunk()):
                 x, y, \
                     attention_targets, \
                     posterior_targets, \
@@ -348,7 +358,7 @@ class Trainer(object):
 
                 # log to tensorboard
                 if self.use_tensorboard:
-                    trace = epoch*self.num_train + i*self.batch_size
+                    trace = epoch*self.train_per_valid + i*self.batch_size
                     log_value('train_loss', loss.item(), trace)
                     log_value('train_acc', acc.item(), trace)
 
@@ -436,8 +446,8 @@ class Trainer(object):
 
         # log to tensorboard
         if self.use_tensorboard:
-            log_value('valid_loss', losses.avg, (epoch+1)*self.num_train)
-            log_value('valid_acc', accs.avg, (epoch+1)*self.num_train)
+            log_value('valid_loss', losses.avg, (epoch+1)*self.train_per_valid)
+            log_value('valid_acc', accs.avg, (epoch+1)*self.train_per_valid)
 
         return losses.avg, accs.avg
 
