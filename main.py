@@ -23,6 +23,7 @@ def main(config):
     if config.is_train:
         train_loader = get_partially_supervised_attention_loader(
             config.batch_size,
+            config.train_per_valid,
             config.supervised_attention_prob,
             **kwargs
         )

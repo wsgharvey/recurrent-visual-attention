@@ -221,6 +221,7 @@ def get_supervised_attention_loader(batch_size,
 
 
 def get_partially_supervised_attention_loader(batch_size,
+                                              fake_epoch_size,
                                               supervised_prob,
                                               num_workers=4,
                                               pin_memory=False):
@@ -240,7 +241,7 @@ def get_partially_supervised_attention_loader(batch_size,
                                      supervised_prob)
 
     # sampler only needs the __len__ attribute to be big
-    sampler = SequentialSampler(range(1000000000))
+    sampler = SequentialSampler(range(fake_epoch_size))
     data_loader = torch.utils.data.DataLoader(
         mixture_dataset, batch_size=batch_size, sampler=sampler,
         num_workers=num_workers, pin_memory=pin_memory,

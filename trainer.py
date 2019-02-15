@@ -3,7 +3,6 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import os
 import time
@@ -11,7 +10,7 @@ import shutil
 import pickle
 
 from tqdm import tqdm
-from utils import AverageMeter, arctanh
+from utils import AverageMeter
 from model import RecurrentAttention
 from tensorboard_logger import configure, log_value
 
@@ -54,7 +53,6 @@ class Trainer(object):
         # data params
         if config.is_train:
             self.train_loader = data_loader[0]
-            self.iter_train_loader = iter(self.train_loader)
             self.valid_loader = data_loader[1]
             self.train_per_valid = config.train_per_valid
             self.num_valid = len(self.valid_loader.sampler.indices)
@@ -155,7 +153,8 @@ class Trainer(object):
         if self.resume:
             self.load_checkpoint(best=False)
 
-        print("\n[*] Train on {} samples between validations, validate on {} samples".format(
+        print("\n[*] Train on {} samples between validations, \
+              validate on {} samples".format(
             self.train_per_valid, self.num_valid)
         )
 
@@ -199,15 +198,6 @@ class Trainer(object):
                  }, is_best
             )
 
-    def iter_train_chunk(self):
-        """
-        Iterates over some number of batches of training data.
-        """
-        i = 0
-        while i < self.train_per_valid:
-            yield next(self.iter_train_loader)
-            i += self.batch_size
-
     def train_one_epoch(self, epoch):
         """
         Train the model for 1 epoch of the training set.
@@ -223,7 +213,7 @@ class Trainer(object):
 
         tic = time.time()
         with tqdm(total=self.train_per_valid) as pbar:
-            for i, data_batch in enumerate(self.iter_train_chunk()):
+            for i, data_batch in enumerate(self.train_loader):
                 x, y, \
                     attention_targets, \
                     posterior_targets, \
@@ -558,3 +548,5 @@ class Trainer(object):
                 "[*] Loaded {} checkpoint @ epoch {}".format(
                     filename, ckpt['epoch'])
             )
+
+#  LocalWords:  Args

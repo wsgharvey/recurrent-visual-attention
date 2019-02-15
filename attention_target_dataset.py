@@ -36,11 +36,12 @@ def normalize_attention_loc(integers, w=28, h=28, T=1):
     return torch.cat([pixel_x.unsqueeze(-1), pixel_y.unsqueeze(-1)], dim=-1)
 
 
-
 class AttentionTargetDataset(Dataset):
     data_file_name = 'training.pt'
 
-    def __init__(self, root, transform=None, label_transform=None, attention_target_transform=None, loadfrom=None, max_dataset_size=100000000):
+    def __init__(self, root, transform=None, label_transform=None,
+                 attention_target_transform=None, loadfrom=None,
+                 max_dataset_size=100000000):
         self.processed_folder = os.path.join(root, "processed")
         self.training_path = os.path.join(self.processed_folder, self.data_file_name)
         self.transform = transform
@@ -167,11 +168,6 @@ class MixtureDataset(Dataset):
             torch.tensor(1. if has_targets else 0.)
 
     def _use_target(self):
-        # self.num_targets_due += self.targets_prob
-        # if self.num_targets_due >= 1:
-        #     self.num_targets_due -= 1
-        #     return True
-        # return False
         return torch.rand((1, 1)).item() < self.targets_prob
 
     def __getitem__(self, index):
@@ -191,10 +187,15 @@ if __name__ == '__main__':
     import argparse
 
     arg_lists = []
-    parser = argparse.ArgumentParser(description='Attention target dataset')
+    parser = argparse.ArgumentParser(
+        description='Process files into attention target dataset.'
+    )
     parser.add_argument('raw_data_folder', type=str,
                         help='path of raw data folder')
-    parser.add_argument('-max_size', type=int, help='maximum number of data points to take')
+    parser.add_argument('-max_size', type=int,
+                        help='maximum number of data points to take')
     args = parser.parse_args()
 
-    AttentionTargetDataset("attention_target_data", loadfrom=args.raw_data_folder, max_dataset_size=args.max_size)
+    AttentionTargetDataset("attention_target_data",
+                           loadfrom=args.raw_data_folder,
+                           max_dataset_size=args.max_size)
