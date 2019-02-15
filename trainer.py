@@ -34,6 +34,14 @@ class Trainer(object):
         """
         self.config = config
 
+        # loss trackers
+        self.traces_at_train_loss = []
+        self.traces_at_valid_loss = []
+        self.train_losses = []
+        self.valid_losses = []
+        self.train_accs = []
+        self.valid_accs = []
+
         # glimpse network params
         self.patch_size = config.patch_size
         self.glimpse_scale = config.glimpse_scale
@@ -198,6 +206,14 @@ class Trainer(object):
                  }, is_best
             )
 
+        training_details = {"train": (self.traces_at_train_loss,
+                                      self.train_losses,
+                                      self.train_accs),
+                            "valid": (self.traces_at_valid_loss,
+                                      self.valid_losses,
+                                      self.valid_accs)}
+        return training_details
+
     def train_one_epoch(self, epoch):
         """
         Train the model for 1 epoch of the training set.
@@ -347,11 +363,9 @@ class Trainer(object):
                         )
                     )
 
-                # log to tensorboard
-                if self.use_tensorboard:
-                    trace = epoch*self.train_per_valid + i*self.batch_size
-                    log_value('train_loss', loss.item(), trace)
-                    log_value('train_acc', acc.item(), trace)
+                self.traces_at_train_loss.append(epoch*self.train_per_valid + i*self.batch_size)
+                self.train_losses.append(loss.item())
+                self.train_accs.append(acc.item())
 
             return losses.avg, accs.avg
 
@@ -435,10 +449,9 @@ class Trainer(object):
             losses.update(loss.data.item(), x.size()[0])
             accs.update(acc.data.item(), x.size()[0])
 
-        # log to tensorboard
-        if self.use_tensorboard:
-            log_value('valid_loss', losses.avg, (epoch+1)*self.train_per_valid)
-            log_value('valid_acc', accs.avg, (epoch+1)*self.train_per_valid)
+        self.traces_at_valid_loss.append((epoch+1)*self.train_per_valid)
+        self.valid_losses.append(losses.avg)
+        self.valid_accs.append(accs.avg)
 
         return losses.avg, accs.avg
 

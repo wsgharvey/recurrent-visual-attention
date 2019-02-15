@@ -5,9 +5,10 @@ from config import get_config
 from utils import prepare_dirs, save_config
 from data_loader import get_gen_model_loader, \
     get_partially_supervised_attention_loader
+from experiment_utils import track_metadata, save_details
 
-
-def main(config):
+@track_metadata
+def main(config, get_metadata=None):
 
     # ensure directories are setup
     prepare_dirs(config)
@@ -29,7 +30,7 @@ def main(config):
         )
         valid_loader = get_gen_model_loader(
             config.batch_size,
-            epoch_size=600,
+            epoch_size=config.valid_size,
             fix_data=True,
             **kwargs
         )
@@ -49,7 +50,8 @@ def main(config):
     # either train
     if config.is_train:
         save_config(config)
-        trainer.train()
+        losses = trainer.train()
+        save_details(config, get_metadata(), losses)
 
     # or load a pretrained model and test
     else:

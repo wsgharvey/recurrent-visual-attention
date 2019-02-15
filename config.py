@@ -48,8 +48,8 @@ reinforce_arg.add_argument('--M', type=float, default=10,
 
 # data params
 data_arg = add_argument_group('Data Params')
-data_arg.add_argument('--valid_size', type=float, default=0.1,
-                      help='Proportion of training set used for validation')
+data_arg.add_argument('--valid_size', type=int, default=1000,
+                      help='Number of traces used for validation.')
 data_arg.add_argument('--batch_size', type=int, default=32,
                       help='# of images in each batch of data')
 data_arg.add_argument('--num_workers', type=int, default=4,
@@ -70,7 +70,7 @@ train_arg.add_argument('--attention_target_weight', type=float, default=1,
                        help='Weighting given to attention targets in loss.')
 train_arg.add_argument('--momentum', type=float, default=0.5,
                        help='Nesterov momentum value')
-train_arg.add_argument('--epochs', type=int, default=200,
+train_arg.add_argument('--epochs', type=int, default=100,
                        help='# of epochs to train for')
 train_arg.add_argument('--init_lr', type=float, default=3e-4,
                        help='Initial learning rate value')
@@ -78,7 +78,7 @@ train_arg.add_argument('--lr_patience', type=int, default=10,
                        help='Number of epochs to wait before reducing lr')
 train_arg.add_argument('--train_patience', type=int, default=50,
                        help='Number of epochs to wait before stopping train')
-train_arg.add_argument('--train_per_valid', type=int, default=5000,
+train_arg.add_argument('--train_per_valid', type=int, default=10000,
                        help='Number of training traces to use between validations.')
 
 
@@ -106,6 +106,8 @@ misc_arg.add_argument('--plot_freq', type=int, default=1,
                       help='How frequently to plot glimpses')
 misc_arg.add_argument('--name', type=str, default="",
                       help='Optional name associated with log etc.')
+misc_arg.add_argument('--path', type=str, default=None,
+                      help="Path for saving experimental data to.")
 
 
 def get_config():

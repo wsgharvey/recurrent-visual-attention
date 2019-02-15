@@ -141,6 +141,3 @@ def save_config(config):
 
     with open(param_path, 'w') as fp:
         json.dump(config.__dict__, fp, indent=4, sort_keys=True)
-
-def arctanh(x):
-    return 0.5*((x+1)/(-x+1)).log()
