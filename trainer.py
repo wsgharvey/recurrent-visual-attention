@@ -196,7 +196,7 @@ class Trainer(object):
                 self.counter += 1
             if self.counter > self.train_patience:
                 print("[!] No improvement in a while, stopping training.")
-                return
+                break
             self.best_valid_acc = max(valid_acc, self.best_valid_acc)
             self.save_checkpoint(
                 {'epoch': epoch + 1,
