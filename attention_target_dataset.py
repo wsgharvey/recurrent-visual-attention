@@ -6,7 +6,6 @@ from PIL import Image
 
 import torch
 from torch.utils.data.dataset import Dataset
-from torch.utils.data.sampler import SubsetRandomSampler
 
 
 def normalize_attention_loc(integers, w=28, h=28, T=1):
@@ -133,6 +132,16 @@ class AttentionTargetDataset(Dataset):
 
     def __len__(self):
         return len(self.images)
+
+    def _posterior_accuracy(self, n_glimpses):
+        n_correct = 0
+        for i in range(len(self)):
+            _, label, _, posteriors = self.__getitem__(i)
+            relevant_posterior = posteriors[n_glimpses]
+            mode = relevant_posterior.argmax()
+            if mode == label:
+                n_correct += 1
+        return n_correct/len(self)
 
 
 class MixtureDataset(Dataset):
