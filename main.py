@@ -7,6 +7,7 @@ from data_loader import get_gen_model_loader, \
     get_partially_supervised_attention_loader
 from experiment_utils import track_metadata, save_details
 
+
 @track_metadata
 def main(config, get_metadata=None):
 

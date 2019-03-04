@@ -12,7 +12,8 @@ import pickle
 from tqdm import tqdm
 from utils import AverageMeter
 from model import RecurrentAttention
-from tensorboard_logger import configure, log_value
+from modules import action_network
+from tensorboard_logger import configure
 
 
 class Trainer(object):
@@ -77,6 +78,7 @@ class Trainer(object):
         self.start_epoch = 0
         self.momentum = config.momentum
         self.lr = config.init_lr
+        self.entropy_reinforce = config.entropy_reinforce_loss
 
         # misc params
         self.use_gpu = config.use_gpu
@@ -120,6 +122,12 @@ class Trainer(object):
 
         print('[*] Number of model parameters: {:,}'.format(
             sum([p.data.nelement() for p in self.model.parameters()])))
+
+        if self.entropy_reinforce:
+            self.extra_classifiers = torch.nn.ModuleList(
+                [action_network(self.hidden_size, 10)
+                 for _ in range(self.num_glimpses-1)]
+            )
 
         # # initialize optimizer and scheduler
         # self.optimizer = optim.SGD(
@@ -256,13 +264,27 @@ class Trainer(object):
                 log_pi = []
                 log_p_targets = []
                 baselines = []
+
+                if self.entropy_reinforce:
+                    delta_entropies = []
+                    prev_entropy = torch.tensor(10.).log()*self.batch_size
+                    loss_intermediate_targets = 0
+                    entropy_baselines = []
+
                 for t in range(self.num_glimpses):
                     # forward pass through model
                     l_t_targets = attention_targets[:, t]
-                    h_t, l_t, b_t, log_probas, loc_dist = \
-                        self.model(x, h_t, last=True,
-                                   replace_l_t=has_targets,
-                                   new_l_t=l_t_targets)
+
+                    if t == self.num_glimpses - 1:
+                        h_t, l_t, b_t, log_probas, loc_dist = \
+                            self.model(x, h_t, last=True,
+                                       replace_l_t=has_targets,
+                                       new_l_t=l_t_targets)
+                    else:
+                        h_t, l_t, b_t, loc_dist = \
+                            self.model(x, h_t, last=False,
+                                       replace_l_t=has_targets,
+                                       new_l_t=l_t_targets)
 
                     p_sampled = loc_dist.log_prob(l_t)
 
@@ -277,6 +299,19 @@ class Trainer(object):
                                                   has_targets.type(
                                                       torch.FloatTensor))
                     log_p_targets.append(p_current_targets)
+
+                    if self.entropy_reinforce:
+                        if t < self.num_glimpses-1:
+                            posterior_logits = self.extra_classifiers[t](h_t.detach())
+                        else:
+                            posterior_logits = log_probas
+                        posterior = torch.distributions.Categorical(
+                            logits=posterior_logits
+                        )
+                        new_entropy = posterior.entropy().sum()
+                        delta_entropies.append(new_entropy - prev_entropy)
+                        prev_entropy = new_entropy
+                        loss_intermediate_targets += -posterior.log_prob(y).sum()
 
                     # t_predicted = log_probas
                     # t_targets = posterior_targets[:, t+1, :]
@@ -305,6 +340,14 @@ class Trainer(object):
                 loss_reinforce = torch.sum(-log_pi*adjusted_reward, dim=1)
                 loss_reinforce = torch.mean(loss_reinforce, dim=0)
 
+                # entropy reinforce loss
+                if self.entropy_reinforce:
+                    # as supplementary loss for location network
+                    # - detached so not used on extra classifiers
+                    loss_entropy_reinforce = torch.sum(
+                        log_pi*(torch.stack(delta_entropies).detach()),
+                    )
+
                 # probability of attention targets loss
                 loss_attention_targets = log_p_targets
                 # sum of KL divergences
@@ -315,6 +358,11 @@ class Trainer(object):
                        loss_baseline + \
                        loss_reinforce + \
                        -self.attention_target_weight * loss_attention_targets
+
+                if self.entropy_reinforce:
+                    loss = loss + \
+                           loss_intermediate_targets+ \
+                           -loss_entropy_reinforce
 
                 # compute accuracy
                 correct = (predicted == y).float()
